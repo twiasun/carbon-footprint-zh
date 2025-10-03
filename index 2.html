@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>个人碳足迹 — 出行</title>
+<style>
+  :root { --ink:#0b0e12; --muted:#6b7280; --card:rgba(255,255,255,.75); }
+  html,body { height:100%; }
+  body {
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro","Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink);
+    background: linear-gradient(160deg,#f6f7fb 0%,#eef1f8 40%,#e6ecff 100%);
+  }
+  .safe { padding: 16px 20px 120px; box-sizing:border-box; max-width:980px; margin:0 auto; }
+  .glass {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,.6);
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(15,17,21,.08);
+    backdrop-filter: blur(12px);
+  }
+  .h1 { font-size: clamp(28px, 4vw, 36px); font-weight: 800; letter-spacing:.3px; }
+  .h2 { font-size: clamp(20px, 3vw, 24px); font-weight: 700; color:#2b3340; }
+  .muted { color: var(--muted); }
+  .btn {
+    appearance:none; border:0; cursor:pointer;
+    background:#0b0e12; color:#fff; border-radius:999px;
+    padding:12px 18px; font-weight:700; box-shadow:0 10px 20px rgba(11,14,18,.12);
+  }
+  .btn-ghost { background: rgba(11,14,18,.08); color:#0b0e12; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0; }
+  input, select {
+    width: 220px; padding:10px 12px; border:1px solid #e8ebf0; border-radius:12px;
+    font-size:14px; outline:none;
+  }
+  .bubble-wrap { margin-top: 16px; display:flex; flex-wrap:wrap; gap: 18px; }
+  .bubble {
+    width: 140px; height: 140px; border-radius:9999px;
+    display:flex; align-items:center; justify-content:center;
+    color:#0b0e12; font-weight:800; font-size:18px; user-select:none;
+    box-shadow: 0 18px 40px rgba(0,0,0,.08);
+    animation: floaty 3.6s ease-in-out infinite;
+    transition: transform .15s ease;
+  }
+  .bubble:active { transform: scale(.96); }
+  @keyframes floaty { 0%{transform:translateY(0)} 50%{transform:translateY(-8px)} 100%{transform:translateY(0)} }
+  .selected-box { margin-top: 18px; }
+  .chip-wrap { display:flex; flex-wrap:wrap; gap:10px; }
+  .chip {
+    background:#fff; border:1px solid #e8ebf0; border-radius:999px;
+    padding:8px 12px; display:flex; gap:10px; align-items:center;
+    box-shadow:0 6px 16px rgba(0,0,0,.04);
+    font-weight:600;
+  }
+  .chip .kg { color:#6b7280; font-weight:500; }
+  .confirm-bar {
+    position: fixed; left:0; right:0; bottom: 18px;
+    margin: 0 auto; max-width: 920px;
+    padding: 12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background: rgba(255,255,255,.9); border: 1px solid rgba(255,255,255,.7); border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.10);
+  }
+  .sheet-mask {
+    position:fixed; inset:0; background:rgba(0,0,0,.22); opacity:0; pointer-events:none; transition:.2s;
+  }
+  .sheet {
+    position:fixed; left:0; right:0; bottom:0; transform: translateY(100%);
+    background:#fff; border-top-left-radius:18px; border-top-right-radius:18px; box-shadow:0 -10px 40px rgba(0,0,0,.1);
+    padding: 12px 14px 18px; transition:.22s ease-out; max-width: 920px; margin:0 auto;
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet-mask.open { opacity:1; pointer-events:auto; }
+  .preview { margin-top: 10px; background:#f6f7fb; border-radius: 12px; padding: 12px; }
+  .preview .num { font-weight:800; font-size:22px; margin-top:6px; }
+  .overlay {
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:20px;
+    background: linear-gradient(160deg,#f6f7fb 0%,#eef1f8 40%,#e6ecff 100%);
+  }
+  .overlay.show { display:flex; }
+  .result-card { text-align:center; padding:36px; }
+  .result-card .big { font-size: clamp(48px, 10vw, 96px); font-weight:800; line-height:1; }
+  .result-card .unit { font-size: clamp(18px, 2.5vw, 28px); }
+</style>
+</head>
+<body>
+  <div class="safe">
+    <div class="glass" style="padding:28px; margin-bottom:16px;">
+      <div class="h1">个人碳足迹</div>
+      <div class="muted" style="margin-top:8px;">交互演示 — 仅包含出行排放</div>
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn" id="btnTransport">出行方式</button>
+        <button class="btn btn-ghost" disabled title="即将上线">家庭能源</button>
+      </div>
+    </div>
+
+    <div class="glass" style="padding:24px;">
+      <div class="h2">选择你的出行</div>
+      <div class="muted" style="margin-top:6px;">点击气泡输入你的平均里程</div>
+
+      <div class="bubble-wrap" id="bubbles"></div>
+
+      <div class="selected-box" id="selectedBox" style="display:none;">
+        <div class="muted" style="margin-bottom:6px;">已选择</div>
+        <div class="chip-wrap" id="chips"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="confirm-bar" id="confirmBar" style="display:none;">
+    <div class="h2" style="margin:0; font-size:18px;">合计：<span id="totalKg">0.0</span> kg/年</div>
+    <button class="btn" id="confirmBtn">确认</button>
+  </div>
+
+  <div class="sheet-mask" id="sheetMask"></div>
+  <div class="sheet glass" id="sheet">
+    <div style="padding:6px 6px 4px;">
+      <div class="h2" id="sheetTitle">出行方式</div>
+      <div class="muted">请输入你的平均出行里程</div>
+    </div>
+
+    <div style="padding: 6px;">
+      <div class="row">
+        <label>里程</label>
+        <input id="mileage" type="number" placeholder="例如 50（km/周）" />
+      </div>
+      <div class="row">
+        <label>口径</label>
+        <select id="unit">
+          <option value="week">km/周</option>
+          <option value="month">km/月</option>
+          <option value="year">km/年</option>
+        </select>
+      </div>
+      <div class="preview">
+        <div class="muted">估算排放（近似）</div>
+        <div class="num"><span id="previewKg">0.0</span> kg CO₂e/年</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; justify-content:flex-end; padding: 6px 6px 0;">
+      <button class="btn btn-ghost" id="cancelBtn">取消</button>
+      <button class="btn" id="saveBtn">保存</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="glass result-card">
+      <div class="h1">你的出行排放</div>
+      <div class="muted" style="margin-top:6px;">估算（近似）：仅用于课堂与演示</div>
+      <div style="margin-top:18px;">
+        <div class="big"><span id="resKg">0.0</span><span class="unit"> kg</span></div>
+        <div class="muted" style="margin-top:8px;">≈ <span id="resTons">0.00</span> t CO₂e / 年</div>
+      </div>
+      <div class="muted" style="margin-top:16px;">点击任意空白处返回首页</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const FACTOR = { car:0.20, bus:0.10, metro:0.04, bike:0.00, walk:0.00, flight:0.18 };
+  const BUBBLES = [
+    { key:'car',   label:'自驾', size:220, bg:'linear-gradient(145deg,#ffd9d9,#fff2e1)', delay:.2 },
+    { key:'bus',   label:'公交', size:200, bg:'linear-gradient(145deg,#e2f5ff,#e9f1ff)', delay:.6 },
+    { key:'metro', label:'地铁', size:180, bg:'linear-gradient(145deg,#eafde6,#f5fff0)', delay:.4 },
+    { key:'bike',  label:'骑行', size:160, bg:'linear-gradient(145deg,#fff0f7,#ffeaf5)', delay:.1 },
+    { key:'walk',  label:'步行', size:160, bg:'linear-gradient(145deg,#f0f5ff,#eef7ff)', delay:.3 },
+    { key:'flight',label:'航班', size:240, bg:'linear-gradient(145deg,#eef0ff,#f0f6ff)', delay:.5 }
+  ];
+
+  const bubblesEl = document.getElementById('bubbles');
+  const sheet = document.getElementById('sheet');
+  const sheetMask = document.getElementById('sheetMask');
+  const sheetTitle = document.getElementById('sheetTitle');
+  const mileage = document.getElementById('mileage');
+  const unit = document.getElementById('unit');
+  const previewKg = document.getElementById('previewKg');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const saveBtn = document.getElementById('saveBtn');
+
+  const chipsEl = document.getElementById('chips');
+  const selectedBox = document.getElementById('selectedBox');
+  const confirmBar = document.getElementById('confirmBar');
+  const totalKgEl = document.getElementById('totalKg');
+  const confirmBtn = document.getElementById('confirmBtn');
+
+  const overlay = document.getElementById('overlay');
+  const resKg = document.getElementById('resKg');
+  const resTons = document.getElementById('resTons');
+
+  const selected = {}; // key -> { kmPerYear, kg, label }
+  let current = null;
+
+  function renderBubbles(){
+    bubblesEl.innerHTML = '';
+    BUBBLES.forEach(b => {
+      const v = document.createElement('button');
+      v.className = 'bubble';
+      v.style.width = (b.size/2) + 'px';
+      v.style.height = (b.size/2) + 'px';
+      v.style.background = b.bg;
+      v.style.animationDelay = (b.delay || 0) + 's';
+      v.textContent = b.label;
+      v.onclick = ()=> openSheet(b);
+      bubblesEl.appendChild(v);
+    });
+  }
+
+  function openSheet(bubble){
+    current = bubble;
+    sheetTitle.textContent = bubble.label;
+    mileage.value = '';
+    unit.value = (bubble.key === 'flight' ? 'year' : 'week');
+    previewKg.textContent = '0.0';
+    sheet.classList.add('open');
+    sheetMask.classList.add('open');
+  }
+  function closeSheet(){
+    sheet.classList.remove('open');
+    sheetMask.classList.remove('open');
+  }
+
+  function kmPerYear(val, period){
+    const d = Number(val || 0);
+    if (period === 'week') return d * 52;
+    if (period === 'month') return d * 12;
+    return d;
+  }
+
+  function updatePreview(){
+    const kmy = kmPerYear(mileage.value, unit.value);
+    const f = FACTOR[current.key] || 0;
+    const kg = Math.max(0, kmy * f);
+    previewKg.textContent = kg.toFixed(1);
+  }
+
+  mileage.addEventListener('input', updatePreview);
+  unit.addEventListener('change', updatePreview);
+  cancelBtn.addEventListener('click', closeSheet);
+  sheetMask.addEventListener('click', closeSheet);
+
+  saveBtn.addEventListener('click', ()=>{
+    if (!mileage.value) { alert('请先填写里程'); return; }
+    const kmy = kmPerYear(mileage.value, unit.value);
+    const kg = Number((kmy * (FACTOR[current.key]||0)).toFixed(1));
+    selected[current.key] = { kmPerYear:kmy, kg, label: current.label };
+    closeSheet();
+    renderChipsAndTotal();
+  });
+
+  function renderChipsAndTotal(){
+    const keys = Object.keys(selected);
+    if (!keys.length) {
+      selectedBox.style.display = 'none';
+      confirmBar.style.display = 'none';
+      return;
+    }
+    selectedBox.style.display = 'block';
+    confirmBar.style.display = 'flex';
+
+    // 准备 chips 容器（如不存在则创建）
+    let chipsElLocal = document.getElementById('chips');
+    if (!chipsElLocal) {
+      chipsElLocal = document.createElement('div');
+      chipsElLocal.id = 'chips';
+      chipsElLocal.className = 'chip-wrap';
+      selectedBox.appendChild(chipsElLocal);
+    }
+
+    chipsElLocal.innerHTML = '';
+    let total = 0;
+    keys.forEach(k => {
+      const it = selected[k];
+      total += it.kg;
+      const c = document.createElement('div');
+      c.className = 'chip';
+      c.innerHTML = `<span>${it.label}</span><span class="kg">${it.kg} kg</span>`;
+      chipsElLocal.appendChild(c);
+    });
+    totalKgEl.textContent = total.toFixed(1);
+  }
+
+  confirmBtn.addEventListener('click', ()=>{
+    const kg = Number(totalKgEl.textContent || 0);
+    resKg.textContent = kg.toFixed(1);
+    resTons.textContent = (kg/1000).toFixed(2);
+    overlay.classList.add('show');
+  });
+
+  overlay.addEventListener('click', ()=>{
+    overlay.classList.remove('show');
+  });
+
+  renderBubbles();
+})();
+</script>
+</body>
+</html>
